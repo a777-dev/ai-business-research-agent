@@ -70,7 +70,6 @@ if st.button("🔍 Research Company"):
                 all_research += f"\n\n===== {topic} =====\n"
 
                 try:
-
                     results = list(
                         ddgs.text(
                             query,
@@ -78,13 +77,8 @@ if st.button("🔍 Research Company"):
                         )
                     )
 
-                except Exception as e:
-
+                except Exception:
                     results = []
-
-                # ------------------------------------------
-                # ADD SEARCH RESULTS
-                # ------------------------------------------
 
                 for result in results:
 
@@ -101,14 +95,28 @@ URL: {url}
                     sources.append(result)
 
     # --------------------------------------------------
-    # CHECK IF SEARCH FOUND ANYTHING
+    # CHECK SEARCH RESULTS
     # --------------------------------------------------
 
     if not all_research.strip():
 
         st.error(
-            "Web search could not retrieve results right now. "
-            "Please try again in a few minutes."
+            "Web search could not retrieve any information. "
+            "Please try again."
+        )
+
+        st.stop()
+
+    # --------------------------------------------------
+    # GEMINI API KEY
+    # --------------------------------------------------
+
+    api_key = os.environ.get("GEMINI_API_KEY")
+
+    if not api_key:
+
+        st.error(
+            "GEMINI_API_KEY was not found in Streamlit Secrets."
         )
 
         st.stop()
@@ -120,16 +128,6 @@ URL: {url}
     with st.spinner("AI is analyzing the research..."):
 
         try:
-
-            api_key = os.environ.get("GEMINI_API_KEY")
-
-            if not api_key:
-
-                st.error(
-                    "Gemini API key is not configured."
-                )
-
-                st.stop()
 
             client = genai.Client(
                 api_key=api_key
@@ -169,7 +167,7 @@ Create a SHORT business research report with:
 
 9. Business Screening
 
-Score the company from 1 to 10 on:
+Score from 1 to 10:
 
 - Market Opportunity
 - Growth Potential
@@ -185,35 +183,36 @@ Rules:
 - Use ONLY the research provided.
 - Do not invent facts.
 - Keep the report concise.
-- Clearly separate facts from analysis.
 - Use simple business language.
 """
             )
 
+            # ------------------------------------------
+            # DISPLAY REPORT
+            # ------------------------------------------
+
+            st.success("Research completed!")
+
+            st.markdown(
+                "## 📋 Business Research Report"
+            )
+
+            st.write(response.text)
+
         except Exception as e:
 
             st.error(
-                "The AI analysis could not be completed right now."
+                "Gemini API error:"
+            )
+
+            st.code(
+                str(e)
             )
 
             st.stop()
 
     # --------------------------------------------------
-    # DISPLAY REPORT
-    # --------------------------------------------------
-
-    st.success("Research completed!")
-
-    st.markdown(
-        "## 📋 Business Research Report"
-    )
-
-    st.write(
-        response.text
-    )
-
-    # --------------------------------------------------
-    # DISPLAY SOURCES
+    # SOURCES
     # --------------------------------------------------
 
     st.markdown(
