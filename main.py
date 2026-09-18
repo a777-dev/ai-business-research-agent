@@ -1,66 +1,85 @@
-import ollama
+import os
+import streamlit as st
+from google import genai
 from ddgs import DDGS
 
-company = input("Enter a company name: ")
+st.set_page_config(
+    page_title="AI Business Research Agent",
+    page_icon="📊",
+    layout="wide"
+)
 
-# Research topics
-queries = {
-    "Company Overview": f"{company} company business overview official",
-    "Products and Services": f"{company} products services official",
-    "Customers and Industries": f"{company} customers industries official",
-    "Competitors": f"{company} major competitors",
-    "News and Risks": f"{company} latest news business risks"
-}
+st.title("📊 AI Business Research & Screening Agent")
+st.write("Research a company using web search and AI.")
 
-all_research = ""
-sources = []
+company = st.text_input(
+    "Enter a company name",
+    placeholder="e.g., TCS"
+)
 
-# Web research
-with DDGS() as ddgs:
+if st.button("🔍 Research Company"):
 
-    for topic, query in queries.items():
+    if not company:
+        st.warning("Please enter a company name.")
+        st.stop()
 
-        print(f"\nResearching: {topic}...")
+    queries = {
+        "Company Overview": f"{company} company business overview official",
+        "Products and Services": f"{company} products services official",
+        "Customers and Industries": f"{company} customers industries official",
+        "Competitors": f"{company} major competitors",
+        "News and Risks": f"{company} latest news business risks"
+    }
 
-        results = list(ddgs.text(query, max_results=3))
+    all_research = ""
+    sources = []
 
-        all_research += f"\n\n===== {topic} =====\n"
+    with st.spinner("Researching the company..."):
 
-        for i, result in enumerate(results, start=1):
+        with DDGS() as ddgs:
 
-            all_research += f"""
-Source {i}
+            for topic, query in queries.items():
+
+                results = list(
+                    ddgs.text(query, max_results=3)
+                )
+
+                all_research += f"\n\n===== {topic} =====\n"
+
+                for result in results:
+
+                    all_research += f"""
 Title: {result['title']}
 Information: {result['body']}
 URL: {result['href']}
 """
 
-            sources.append(result)
+                    sources.append(result)
 
-# Ask Llama to analyze everything
-response = ollama.chat(
-    model="llama3.2:3b",
-    messages=[
-        {
-            "role": "user",
-            "content": f"""
+    with st.spinner("AI is analyzing the research..."):
+
+        client = genai.Client(
+            api_key=os.environ.get("GEMINI_API_KEY")
+        )
+
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=f"""
 You are a business research analyst.
 
 Analyze the following research about {company}.
 
 {all_research}
 
-Create a SHORT business research report with these sections:
+Create a SHORT business research report with:
 
 1. Company Overview
 2. Products and Services
 3. Target Customers
 4. Industry
 5. Major Competitors
-   - Mention only 5 competitors.
+   - Mention only 5.
 6. Competitor Comparison
-   - Compare {company} with the 5 competitors.
-   - Use simple factors such as services, industries served and market positioning.
 7. Opportunities
    - Give 3 opportunities.
 8. Risks
@@ -68,53 +87,41 @@ Create a SHORT business research report with these sections:
 9. Business Screening
 
 Give a score from 1 to 10 for:
-
 - Market Opportunity
 - Growth Potential
 - Competitive Position
 - Business Risk
 
-For each score, give ONE short reason.
+Give ONE short reason for each score.
 
 10. Key Takeaway
+
 Rules:
-- Use ONLY the information provided.
+- Use ONLY the research provided.
 - Do not invent facts.
 - Keep the report concise.
-- Do not give numerical scores.
 - Do not create very long lists.
 """
-        }
-    ]
-)
+        )
 
-# Display report
-print("\n")
-print("=" * 60)
-print("AI BUSINESS RESEARCH REPORT")
-print("=" * 60)
+    st.success("Research completed!")
 
-print(response["message"]["content"])
+    st.markdown("## 📋 Business Research Report")
 
-# Display sources
-print("\n")
-print("=" * 60)
-print("SOURCES USED")
-print("=" * 60)
+    st.write(response.text)
 
-seen_urls = set()
-source_number = 1
+    st.markdown("## 🔗 Sources Used")
 
-for source in sources:
+    seen_urls = set()
 
-    url = source["href"]
+    for source in sources:
 
-    # Remove duplicate sources
-    if url not in seen_urls:
+        url = source["href"]
 
-        print(f"{source_number}. {source['title']}")
-        print(f"   {url}")
-        print()
+        if url not in seen_urls:
 
-        seen_urls.add(url)
-        source_number += 1
+            st.markdown(
+                f"- [{source['title']}]({url})"
+            )
+
+            seen_urls.add(url)
