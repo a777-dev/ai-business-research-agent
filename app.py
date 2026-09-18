@@ -10,7 +10,7 @@ st.set_page_config(
 )
 
 st.title("📊 AI Business Research & Screening Agent")
-st.write("Research a company using web search + local AI.")
+st.write("Research a company using web search and AI.")
 
 company = st.text_input(
     "Enter a company name",
@@ -58,12 +58,13 @@ URL: {result['href']}
 
     with st.spinner("AI is analyzing the research..."):
 
-        response = ollama.chat(
-            model="llama3.2:3b",
-            messages=[
-                {
-                    "role": "user",
-                    "content": f"""
+        client = genai.Client(
+            api_key=os.environ.get("GEMINI_API_KEY")
+        )
+
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=f"""
 You are a business research analyst.
 
 Analyze the following research about {company}.
@@ -80,9 +81,9 @@ Create a SHORT business research report with:
    - Mention only 5.
 6. Competitor Comparison
 7. Opportunities
-   - 3 opportunities.
+   - Give 3 opportunities.
 8. Risks
-   - 3 risks.
+   - Give 3 risks.
 9. Business Screening
 
 Score from 1 to 10:
@@ -100,15 +101,13 @@ Rules:
 - Do not invent facts.
 - Keep the report concise.
 """
-                }
-            ]
         )
 
     st.success("Research completed!")
 
     st.markdown("## 📋 Business Research Report")
 
-    st.write(response["message"]["content"])
+    st.write(response.text)
 
     st.markdown("## 🔗 Sources Used")
 
@@ -124,4 +123,5 @@ Rules:
                 f"- [{source['title']}]({url})"
             )
 
-        seen_urls.add(url)
+            seen_urls.add(url)
+            
