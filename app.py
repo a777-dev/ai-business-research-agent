@@ -1,5 +1,6 @@
+import os
 import streamlit as st
-import ollama
+from google import genai
 from ddgs import DDGS
 
 st.set_page_config(
